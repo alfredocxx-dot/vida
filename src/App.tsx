@@ -4,6 +4,7 @@ import { dataService } from './services/dataService';
 import { RETOS_MENSUALES } from './services/mockData';
 import { Header } from './components/Header';
 import { BottomNav, ScreenTab } from './components/BottomNav';
+import { OnboardingModal } from './components/OnboardingModal';
 import { LoginScreen } from './screens/LoginScreen';
 import { HoyScreen } from './screens/HoyScreen';
 import { RegistroScreen } from './screens/RegistroScreen';
@@ -17,10 +18,19 @@ export const App: React.FC = () => {
   const [activeRole, setActiveRole] = useState<'Participante' | 'Administrador'>('Participante');
   const [currentTab, setCurrentTab] = useState<ScreenTab>('hoy');
   
+  // Tema: Por defecto Modo Día (light)
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    const saved = localStorage.getItem('vida_theme');
+    return (saved === 'dark' || saved === 'light') ? saved : 'light';
+  });
+
   const [logs, setLogs] = useState<Record<string, DailyLog>>({});
   const [measurements, setMeasurements] = useState<BodyMeasurement[]>([]);
   const [participants, setParticipants] = useState<UserProfile[]>([]);
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
+
+  // Estado del Onboarding
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   // Toast
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -28,6 +38,16 @@ export const App: React.FC = () => {
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  // Efecto para sincronizar el tema en el HTML
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('vida_theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'light' ? 'dark' : 'light');
   };
 
   // Cargar datos al iniciar
@@ -38,9 +58,13 @@ export const App: React.FC = () => {
     const loadedAttendance = dataService.getAttendance();
     setAttendance(loadedAttendance);
 
-    // Usuario inicial por defecto
     const initialUser = dataService.getCurrentUser();
     setUser(initialUser);
+
+    // Si el usuario no ha completado el consentimiento/onboarding, mostrarlo
+    if (initialUser && !initialUser.fechaConsentimiento) {
+      setShowOnboarding(true);
+    }
   }, []);
 
   // Cargar registros y medidas cuando cambia el usuario
@@ -48,6 +72,9 @@ export const App: React.FC = () => {
     if (user) {
       dataService.getDailyLogs(user.id).then(setLogs);
       dataService.getMeasurements(user.id).then(setMeasurements);
+      if (!user.fechaConsentimiento) {
+        setShowOnboarding(true);
+      }
     }
   }, [user]);
 
@@ -59,11 +86,28 @@ export const App: React.FC = () => {
     dataService.saveCurrentUser(loggedUser);
     setActiveRole('Participante');
     showToast(`¡Bienvenido, ${loggedUser.nombre}!`);
+
+    if (!loggedUser.fechaConsentimiento) {
+      setShowOnboarding(true);
+    }
   };
 
   const handleLogout = () => {
     setUser(null);
     showToast('Sesión cerrada correctamente');
+  };
+
+  const handleOnboardingComplete = async (updatedUser: UserProfile, initialMeasurement?: BodyMeasurement) => {
+    setUser(updatedUser);
+    dataService.saveCurrentUser(updatedUser);
+
+    if (initialMeasurement) {
+      await dataService.saveMeasurement(initialMeasurement);
+      setMeasurements(prev => [...prev, initialMeasurement]);
+    }
+
+    setShowOnboarding(false);
+    showToast('¡Configuración inicial completada con éxito!');
   };
 
   const handleSaveLog = async (newLog: DailyLog) => {
@@ -97,8 +141,10 @@ export const App: React.FC = () => {
     return <LoginScreen onLogin={handleLogin} availableUsers={participants} />;
   }
 
-  // Si está en modo Administrador
-  if (activeRole === 'Administrador') {
+  // Protección estricta: Solo si el rol es Administrador se puede ver la sección de Administrador
+  const canAccessAdmin = user.rol === 'Administrador';
+
+  if (activeRole === 'Administrador' && canAccessAdmin) {
     return (
       <AdminScreen
         currentUser={user}
@@ -117,7 +163,13 @@ export const App: React.FC = () => {
       <Header
         user={user}
         activeRole={activeRole}
-        onToggleRole={() => setActiveRole(prev => prev === 'Participante' ? 'Administrador' : 'Participante')}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+        onToggleRole={() => {
+          if (canAccessAdmin) {
+            setActiveRole(prev => prev === 'Participante' ? 'Administrador' : 'Participante');
+          }
+        }}
         onLogout={handleLogout}
       />
 
@@ -161,6 +213,14 @@ export const App: React.FC = () => {
       </main>
 
       <BottomNav currentTab={currentTab} onSelectTab={setCurrentTab} />
+
+      {/* Modal de Onboarding si el usuario es nuevo */}
+      {showOnboarding && (
+        <OnboardingModal
+          user={user}
+          onComplete={handleOnboardingComplete}
+        />
+      )}
 
       {/* Notificación Toast flotante */}
       <div className={`toast-notice ${toastMessage ? 'visible' : ''}`}>

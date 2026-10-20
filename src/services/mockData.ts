@@ -1,4 +1,4 @@
-import { UserProfile, DailyLog, BodyMeasurement, MonthlyChallenge, AttendanceRecord } from '../types';
+import { UserProfile, BodyMeasurement, MonthlyChallenge, AttendanceRecord } from '../types';
 
 export const RETOS_MENSUALES: Record<number, MonthlyChallenge> = {
   1: { mes: 1, titulo: 'Más vegetales', pregunta: '¿Agregaste una ensalada o verdura extra hoy?', trimestre: 'Nutrición' },
@@ -15,11 +15,12 @@ export const RETOS_MENSUALES: Record<number, MonthlyChallenge> = {
   12: { mes: 12, titulo: 'Evaluación final y metas', pregunta: '¿Revisaste tus avances del año?', trimestre: 'Integral' }
 };
 
-export const DEFAULT_USER: UserProfile = {
+// 1 Administrador y 2 Participantes de prueba oficiales
+export const DEFAULT_ADMIN: UserProfile = {
   id: 'usr-alfredo',
   nombre: 'Alfredo Jiménez',
   usuario: 'alfredo',
-  email: 'alfredo@vida.org',
+  email: 'alfredo@iaach.org',
   rol: 'Administrador',
   campo: 'Asociación Altos de Chiapas',
   oficina: 'Oficinas de la Asociación',
@@ -30,32 +31,51 @@ export const DEFAULT_USER: UserProfile = {
   fechaConsentimiento: '2027-01-11'
 };
 
+export const MOCK_OFFICE_PARTICIPANTS: UserProfile[] = [
+  DEFAULT_ADMIN,
+  {
+    id: 'usr-ana',
+    nombre: 'Ana Gómez',
+    usuario: 'ana.g',
+    email: 'ana.gomez@iaach.org',
+    rol: 'Participante',
+    campo: 'Asociación Altos de Chiapas',
+    oficina: 'Oficinas de la Asociación',
+    sexo: 'F',
+    estatura: 1.62,
+    pesoInicial: 64.5,
+    activo: true,
+    fechaConsentimiento: '2027-01-12'
+  },
+  {
+    id: 'usr-benjamin',
+    nombre: 'Benjamín Ruiz',
+    usuario: 'benjamin.r',
+    email: 'benjamin.ruiz@iaach.org',
+    rol: 'Participante',
+    campo: 'Asociación Altos de Chiapas',
+    oficina: 'Oficinas de la Asociación',
+    sexo: 'M',
+    estatura: 1.76,
+    pesoInicial: 79.0,
+    activo: true,
+    fechaConsentimiento: '2027-01-12'
+  }
+];
+
 export const INITIAL_MEASUREMENTS: BodyMeasurement[] = [
   { id: 'm-1', userId: 'usr-alfredo', fecha: '2027-01-14', origen: 'Evaluación inicial', peso: 83.2, cintura: 97, imcCalculado: 28.1 },
   { id: 'm-2', userId: 'usr-alfredo', fecha: '2027-02-15', origen: 'Autorreporte', peso: 82.1, cintura: null, imcCalculado: 27.7 },
   { id: 'm-3', userId: 'usr-alfredo', fecha: '2027-03-08', origen: 'Autorreporte', peso: 81.3, cintura: 95, imcCalculado: 27.5 }
 ];
 
-export const MOCK_OFFICE_PARTICIPANTS: UserProfile[] = [
-  DEFAULT_USER,
-  { id: 'usr-2', nombre: 'Ana Gómez', usuario: 'ana.g', rol: 'Participante', estatura: 1.60, activo: true },
-  { id: 'usr-3', nombre: 'Benjamín Ruiz', usuario: 'benjamin.r', rol: 'Participante', estatura: 1.75, activo: true },
-  { id: 'usr-4', nombre: 'Carla Méndez', usuario: 'carla.m', rol: 'Participante', estatura: 1.65, activo: true },
-  { id: 'usr-5', nombre: 'Daniel Pérez', usuario: 'daniel.p', rol: 'Participante', estatura: 1.70, activo: true },
-  { id: 'usr-6', nombre: 'Elena Cruz', usuario: 'elena.c', rol: 'Participante', estatura: 1.58, activo: true },
-  { id: 'usr-7', nombre: 'Fernando Díaz', usuario: 'fernando.d', rol: 'Participante', estatura: 1.78, activo: true },
-  { id: 'usr-8', nombre: 'Gabriela Ortiz', usuario: 'gabriela.o', rol: 'Participante', estatura: 1.62, activo: true },
-  { id: 'usr-9', nombre: 'Héctor Morales', usuario: 'hector.m', rol: 'Participante', estatura: 1.71, activo: true },
-  { id: 'usr-10', nombre: 'Irene Vázquez', usuario: 'irene.v', rol: 'Participante', estatura: 1.66, activo: true }
-];
-
 export const MOCK_ATTENDANCE: AttendanceRecord[] = [
   {
     fecha: '2027-03-08',
-    records: { 'usr-alfredo': 'A', 'usr-2': 'A', 'usr-3': 'P', 'usr-4': 'A', 'usr-5': 'N', 'usr-6': 'A', 'usr-7': 'A', 'usr-8': 'P', 'usr-9': 'A', 'usr-10': 'A' }
+    records: { 'usr-alfredo': 'A', 'usr-ana': 'A', 'usr-benjamin': 'P' }
   },
   {
     fecha: '2027-03-04',
-    records: { 'usr-alfredo': 'A', 'usr-2': 'A', 'usr-3': 'A', 'usr-4': 'A', 'usr-5': 'P', 'usr-6': 'A', 'usr-7': 'N', 'usr-8': 'A', 'usr-9': 'A', 'usr-10': 'A' }
+    records: { 'usr-alfredo': 'A', 'usr-ana': 'A', 'usr-benjamin': 'A' }
   }
 ];

@@ -1,56 +1,97 @@
 import React from 'react';
 import { UserProfile } from '../types';
 import { isFirebaseConfigured } from '../services/firebase';
-import { ShieldCheck, Cloud, CloudOff } from 'lucide-react';
+import { Cloud, CloudOff, Sun, Moon } from 'lucide-react';
 
 interface HeaderProps {
   user: UserProfile;
   activeRole: 'Participante' | 'Administrador';
+  theme: 'light' | 'dark';
+  onToggleTheme: () => void;
   onToggleRole: () => void;
   onLogout: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ user, activeRole, onToggleRole, onLogout }) => {
+export const Header: React.FC<HeaderProps> = ({ 
+  user, 
+  activeRole, 
+  theme, 
+  onToggleTheme, 
+  onToggleRole, 
+  onLogout 
+}) => {
+  const isAdmin = user.rol === 'Administrador';
+
   return (
     <header className="app-header">
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <div className="logo-plate" style={{ cursor: 'pointer' }} onClick={onToggleRole} title="Cambiar de vista">
-          <span style={{ fontWeight: 800, fontSize: '18px', color: 'var(--brand)', letterSpacing: '-0.03em' }}>
-            V<span style={{ color: 'var(--water)' }}>I</span><span style={{ color: 'var(--food)' }}>D</span><span style={{ color: 'var(--move)' }}>A</span>
-          </span>
-          <span style={{ fontSize: '10px', fontWeight: 700, marginLeft: '6px', color: 'var(--ink-2)', background: 'var(--surface-2)', padding: '2px 6px', borderRadius: '6px' }}>
-            {activeRole === 'Administrador' ? 'ADMIN' : 'APP'}
-          </span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div 
+          className="logo-plate" 
+          onClick={isAdmin ? onToggleRole : undefined} 
+          style={{ cursor: isAdmin ? 'pointer' : 'default', height: '36px', padding: '3px 8px' }}
+          title={isAdmin ? "Toca para alternar vista móvil / administrador" : "VIDA"}
+        >
+          <img 
+            src="./logo-vida.png" 
+            alt="VIDA" 
+            style={{ height: '28px', width: 'auto', display: 'block' }} 
+            onError={(e) => {
+              // Fallback texto estilizado si tarda en cargar la imagen
+              (e.target as HTMLElement).style.display = 'none';
+            }}
+          />
         </div>
 
-        {/* Indicador de estado de conexión */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'var(--ink-2)' }}>
+        {/* Estado de sincronización en nube */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '11px', fontWeight: 600 }}>
           {isFirebaseConfigured ? (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', color: 'var(--good)' }}>
-              <Cloud size={14} /> Cloud
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', color: 'var(--good)' }} title="Sincronizado con Firebase Firestore">
+              <Cloud size={13} /> Nube
             </span>
           ) : (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', color: 'var(--warn)' }}>
-              <CloudOff size={14} /> Local
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', color: 'var(--warn)' }} title="Modo Local">
+              <CloudOff size={13} /> Local
             </span>
           )}
         </div>
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        {user.rol === 'Administrador' && (
+        {/* Toggle Modo Día / Modo Noche */}
+        <button
+          onClick={onToggleTheme}
+          style={{
+            width: '34px',
+            height: '34px',
+            borderRadius: '50%',
+            background: 'var(--surface-2)',
+            color: 'var(--ink)',
+            display: 'grid',
+            placeItems: 'center',
+            border: '1px solid var(--line)'
+          }}
+          title={theme === 'light' ? 'Cambiar a Modo Noche' : 'Cambiar a Modo Día'}
+          aria-label="Alternar tema"
+        >
+          {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
+        </button>
+
+        {/* Solo el Administrador ve el botón para ir a su sección exclusiva */}
+        {isAdmin && (
           <button
             onClick={onToggleRole}
             style={{
-              fontSize: '12px',
+              fontSize: '11px',
               fontWeight: 700,
-              padding: '6px 12px',
+              padding: '6px 10px',
               borderRadius: '999px',
               background: activeRole === 'Administrador' ? 'var(--brand)' : 'var(--surface-2)',
-              color: activeRole === 'Administrador' ? '#fff' : 'var(--ink)'
+              color: activeRole === 'Administrador' ? '#fff' : 'var(--ink)',
+              border: '1px solid',
+              borderColor: activeRole === 'Administrador' ? 'var(--brand)' : 'var(--line)'
             }}
           >
-            {activeRole === 'Administrador' ? 'Ver como Móvil' : 'Panel Admin'}
+            {activeRole === 'Administrador' ? 'Vista Móvil' : 'Panel Admin'}
           </button>
         )}
 

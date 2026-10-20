@@ -1,6 +1,6 @@
 import { DailyLog, BodyMeasurement, AttendanceRecord, UserProfile } from '../types';
 import { db, isFirebaseConfigured } from './firebase';
-import { DEFAULT_USER, INITIAL_MEASUREMENTS, MOCK_OFFICE_PARTICIPANTS, MOCK_ATTENDANCE } from './mockData';
+import { DEFAULT_ADMIN, INITIAL_MEASUREMENTS, MOCK_OFFICE_PARTICIPANTS, MOCK_ATTENDANCE } from './mockData';
 import { collection, doc, setDoc, getDoc, getDocs, query, where } from 'firebase/firestore';
 
 const STORAGE_KEYS = {
@@ -67,8 +67,8 @@ export const dataService = {
     if (local) {
       try { return JSON.parse(local); } catch (e) {}
     }
-    localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(DEFAULT_USER));
-    return DEFAULT_USER;
+    localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(DEFAULT_ADMIN));
+    return DEFAULT_ADMIN;
   },
 
   saveCurrentUser(user: UserProfile) {
