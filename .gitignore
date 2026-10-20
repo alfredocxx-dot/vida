@@ -3,11 +3,6 @@ node_modules
 .pnp
 .pnp.js
 
-# Build de producción
-dist
-dist-ssr
-*.local
-
 # Variables de entorno secretas
 .env.local
 .env.*.local
