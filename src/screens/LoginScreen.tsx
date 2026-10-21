@@ -1,45 +1,57 @@
 import React, { useState } from 'react';
 import { UserProfile } from '../types';
-import { Lock, User, ArrowRight } from 'lucide-react';
+import { authService } from '../services/authService';
+import { Lock, User, ArrowRight, Eye, EyeOff, AlertCircle } from 'lucide-react';
 
 interface LoginScreenProps {
-  onLogin: (user: UserProfile) => void;
+  onLoginSuccess: (user: UserProfile) => void;
   availableUsers: UserProfile[];
 }
 
-export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, availableUsers }) => {
+export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, availableUsers }) => {
   const [username, setUsername] = useState('alfredo');
   const [password, setPassword] = useState('vida2027');
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!username.trim()) {
+      setErrorMsg('Ingresa tu nombre de usuario');
+      return;
+    }
+    if (!password.trim()) {
+      setErrorMsg('Ingresa tu contraseña');
+      return;
+    }
+
     setErrorMsg('');
-    const cleanUser = username.trim().toLowerCase();
+    setIsLoading(true);
 
-    // Buscar en la lista de usuarios
-    const found = availableUsers.find(u => u.usuario.toLowerCase() === cleanUser);
-
-    if (found) {
-      onLogin(found);
-    } else {
-      // Si el usuario escribe uno nuevo para registrarse sobre la marcha
-      const newUser: UserProfile = {
-        id: `usr-${cleanUser}`,
-        nombre: username.charAt(0).toUpperCase() + username.slice(1),
-        usuario: cleanUser,
-        rol: cleanUser === 'admin' ? 'Administrador' : 'Participante',
-        estatura: 1.70,
-        activo: true
-      };
-      onLogin(newUser);
+    try {
+      const user = await authService.login(username, password);
+      onLoginSuccess(user);
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Error al iniciar sesión. Verifica tus datos.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleQuickLogin = (usr: string) => {
-    const found = availableUsers.find(u => u.usuario === usr);
-    if (found) {
-      onLogin(found);
+  const handleQuickLogin = async (usr: string) => {
+    setUsername(usr);
+    setPassword('vida2027');
+    setErrorMsg('');
+    setIsLoading(true);
+
+    try {
+      const user = await authService.login(usr, 'vida2027');
+      onLoginSuccess(user);
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Error al iniciar sesión.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -74,20 +86,25 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, availableUser
         <form onSubmit={handleSubmit} style={{ display: 'grid', gap: '14px' }}>
           <div>
             <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, marginBottom: '6px' }}>
-              Usuario
+              Usuario o Correo
             </label>
             <div style={{ position: 'relative' }}>
               <input
                 type="text"
                 value={username}
-                onChange={e => setUsername(e.target.value)}
+                onChange={e => {
+                  setUsername(e.target.value);
+                  if (errorMsg) setErrorMsg('');
+                }}
                 placeholder="Ej. alfredo"
                 autoComplete="username"
+                disabled={isLoading}
                 style={{
                   width: '100%',
                   padding: '12px 14px 12px 38px',
                   borderRadius: '12px',
-                  border: '1.5px solid var(--line)',
+                  border: '1.5px solid',
+                  borderColor: errorMsg ? 'var(--bad)' : 'var(--line)',
                   fontSize: '15px',
                   background: 'var(--surface)',
                   color: 'var(--ink)'
@@ -104,16 +121,21 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, availableUser
             </label>
             <div style={{ position: 'relative' }}>
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 value={password}
-                onChange={e => setPassword(e.target.value)}
+                onChange={e => {
+                  setPassword(e.target.value);
+                  if (errorMsg) setErrorMsg('');
+                }}
                 placeholder="••••••••"
                 autoComplete="current-password"
+                disabled={isLoading}
                 style={{
                   width: '100%',
-                  padding: '12px 14px 12px 38px',
+                  padding: '12px 42px 12px 38px',
                   borderRadius: '12px',
-                  border: '1.5px solid var(--line)',
+                  border: '1.5px solid',
+                  borderColor: errorMsg ? 'var(--bad)' : 'var(--line)',
                   fontSize: '15px',
                   background: 'var(--surface)',
                   color: 'var(--ink)'
@@ -121,22 +143,55 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, availableUser
                 required
               />
               <Lock size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-2)' }} />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  position: 'absolute',
+                  right: '12px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: 'var(--ink-2)',
+                  display: 'grid',
+                  placeItems: 'center'
+                }}
+                tabIndex={-1}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
             </div>
           </div>
 
+          {/* Mensaje de Error en caso de fallo */}
           {errorMsg && (
-            <div style={{ fontSize: '12px', color: 'var(--bad)', fontWeight: 600 }}>
-              {errorMsg}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              background: 'var(--bad-soft)',
+              color: 'var(--bad)',
+              padding: '10px 12px',
+              borderRadius: '10px',
+              fontSize: '13px',
+              fontWeight: 600
+            }}>
+              <AlertCircle size={18} style={{ flexShrink: 0 }} />
+              <span>{errorMsg}</span>
             </div>
           )}
 
-          <button type="submit" className="btn-primary" style={{ marginTop: '4px' }}>
-            <span>Ingresar a la App</span>
-            <ArrowRight size={18} />
+          <button 
+            type="submit" 
+            className="btn-primary" 
+            style={{ marginTop: '4px', opacity: isLoading ? 0.7 : 1 }}
+            disabled={isLoading}
+          >
+            <span>{isLoading ? 'Verificando credenciales...' : 'Iniciar Sesión'}</span>
+            {!isLoading && <ArrowRight size={18} />}
           </button>
         </form>
 
-        {/* Cuentas de Acceso Rápido */}
+        {/* Acceso Rápido para Pruebas Oficiales */}
         <div style={{ marginTop: '18px', borderTop: '1px solid var(--line)', paddingTop: '14px', textAlign: 'center' }}>
           <div style={{ fontSize: '11px', color: 'var(--ink-2)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
             Acceso Rápido para Pruebas:
@@ -144,6 +199,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, availableUser
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <button
               onClick={() => handleQuickLogin('alfredo')}
+              disabled={isLoading}
               style={{
                 fontSize: '12px',
                 padding: '8px 12px',
@@ -161,6 +217,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, availableUser
             </button>
             <button
               onClick={() => handleQuickLogin('ana.g')}
+              disabled={isLoading}
               style={{
                 fontSize: '12px',
                 padding: '8px 12px',
@@ -178,6 +235,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, availableUser
             </button>
             <button
               onClick={() => handleQuickLogin('benjamin.r')}
+              disabled={isLoading}
               style={{
                 fontSize: '12px',
                 padding: '8px 12px',

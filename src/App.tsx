@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { UserProfile, DailyLog, BodyMeasurement, AttendanceRecord } from './types';
 import { dataService } from './services/dataService';
+import { authService } from './services/authService';
 import { RETOS_MENSUALES } from './services/mockData';
 import { Header } from './components/Header';
 import { BottomNav, ScreenTab } from './components/BottomNav';
@@ -14,7 +15,7 @@ import { RetoScreen } from './screens/RetoScreen';
 import { AdminScreen } from './screens/AdminScreen';
 
 export const App: React.FC = () => {
-  const [user, setUser] = useState<UserProfile | null>(null);
+  const [user, setUser] = useState<UserProfile | null>(() => authService.getCurrentSession());
   const [activeRole, setActiveRole] = useState<'Participante' | 'Administrador'>('Participante');
   const [currentTab, setCurrentTab] = useState<ScreenTab>('hoy');
   
@@ -50,20 +51,22 @@ export const App: React.FC = () => {
     setTheme(prev => prev === 'light' ? 'dark' : 'light');
   };
 
-  // Cargar datos al iniciar
+  // Cargar datos y sincronizar usuarios al iniciar
   useEffect(() => {
-    const loadedParticipants = dataService.getParticipants();
-    setParticipants(loadedParticipants);
+    authService.initSync();
+
+    const loadedAccounts = authService.getAllAccounts();
+    setParticipants(loadedAccounts);
 
     const loadedAttendance = dataService.getAttendance();
     setAttendance(loadedAttendance);
 
-    const initialUser = dataService.getCurrentUser();
-    setUser(initialUser);
-
-    // Si el usuario no ha completado el consentimiento/onboarding, mostrarlo
-    if (initialUser && !initialUser.fechaConsentimiento) {
-      setShowOnboarding(true);
+    const session = authService.getCurrentSession();
+    if (session) {
+      setUser(session);
+      if (!session.fechaConsentimiento) {
+        setShowOnboarding(true);
+      }
     }
   }, []);
 
@@ -83,7 +86,6 @@ export const App: React.FC = () => {
 
   const handleLogin = (loggedUser: UserProfile) => {
     setUser(loggedUser);
-    dataService.saveCurrentUser(loggedUser);
     setActiveRole('Participante');
     showToast(`¡Bienvenido, ${loggedUser.nombre}!`);
 
@@ -92,7 +94,8 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await authService.logout();
     setUser(null);
     showToast('Sesión cerrada correctamente');
   };
@@ -129,16 +132,21 @@ export const App: React.FC = () => {
     showToast('Pase de lista actualizado');
   };
 
-  const handleAddUser = (newUser: UserProfile) => {
-    const updated = [...participants, newUser];
+  const handleAddUser = async (newUser: UserProfile) => {
+    const created = await authService.createUser(newUser);
+    const updated = authService.getAllAccounts();
     setParticipants(updated);
-    localStorage.setItem('vida_participants', JSON.stringify(updated));
-    showToast(`Cuenta creada para ${newUser.nombre}`);
+    showToast(`Cuenta creada para ${created.nombre}`);
   };
 
   // Si no ha iniciado sesión, mostrar pantalla de Login
   if (!user) {
-    return <LoginScreen onLogin={handleLogin} availableUsers={participants} />;
+    return (
+      <LoginScreen 
+        onLoginSuccess={handleLogin} 
+        availableUsers={participants.length > 0 ? participants : authService.getAllAccounts()} 
+      />
+    );
   }
 
   // Protección estricta: Solo si el rol es Administrador se puede ver la sección de Administrador
