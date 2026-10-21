@@ -173,6 +173,7 @@ export const authService = {
       } catch (e) {}
     }
     localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+    localStorage.removeItem('vida_user_profile');
   },
 
   // Crear nuevo usuario (desde el Panel de Administrador)

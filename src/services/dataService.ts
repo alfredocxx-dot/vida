@@ -80,6 +80,8 @@ export const dataService = {
 
   // Registros diarios aislados por usuario
   async getDailyLogs(userId: string): Promise<Record<string, DailyLog>> {
+    if (!userId) return {};
+    
     // 1. Obtener caché local inmediato del usuario
     const localLogs = getInitialLogs(userId);
 
@@ -104,6 +106,11 @@ export const dataService = {
 
   // Guardado garantizado instantáneo (permite actualizar múltiples veces al día)
   saveDailyLog(log: DailyLog): void {
+    if (!log || !log.userId) {
+      console.warn('Protección activa: Intento de guardar registro diario sin userId');
+      return;
+    }
+
     const userKey = `${STORAGE_KEYS.LOGS}_${log.userId}`;
     const stored = localStorage.getItem(userKey);
     let logs: Record<string, DailyLog> = {};
@@ -130,6 +137,8 @@ export const dataService = {
 
   // Medidas Corporales aisladas por usuario
   async getMeasurements(userId: string): Promise<BodyMeasurement[]> {
+    if (!userId) return [];
+
     const userKey = `${STORAGE_KEYS.MEASUREMENTS}_${userId}`;
     const stored = localStorage.getItem(userKey);
     if (stored) {
@@ -143,6 +152,11 @@ export const dataService = {
   },
 
   async saveMeasurement(item: BodyMeasurement): Promise<void> {
+    if (!item || !item.userId) {
+      console.warn('Protección activa: Intento de guardar medida corporal sin userId');
+      return;
+    }
+
     const userKey = `${STORAGE_KEYS.MEASUREMENTS}_${item.userId}`;
     const measurements = await this.getMeasurements(item.userId);
     measurements.push(item);

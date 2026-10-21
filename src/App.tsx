@@ -105,6 +105,9 @@ export const App: React.FC = () => {
   const currentChallenge = RETOS_MENSUALES[currentMonthNum] || RETOS_MENSUALES[3];
 
   const handleLogin = (loggedUser: UserProfile) => {
+    // Blindaje de aislamiento: Limpiar estado previo antes de cargar nueva sesión
+    setLogs({});
+    setMeasurements([]);
     setUser(loggedUser);
     setActiveRole('Participante');
     showToast(`¡Bienvenido, ${loggedUser.nombre}!`);
@@ -116,7 +119,10 @@ export const App: React.FC = () => {
 
   const handleLogout = async () => {
     await authService.logout();
+    // Limpieza absoluta de memoria en el cliente
     setUser(null);
+    setLogs({});
+    setMeasurements([]);
     showToast('Sesión cerrada correctamente');
   };
 
