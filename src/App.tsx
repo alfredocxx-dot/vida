@@ -6,6 +6,8 @@ import { RETOS_MENSUALES } from './services/mockData';
 import { Header } from './components/Header';
 import { BottomNav, ScreenTab } from './components/BottomNav';
 import { OnboardingModal } from './components/OnboardingModal';
+import { DateSimulatorBar } from './components/DateSimulatorBar';
+import { toISODate } from './utils/helpers';
 import { LoginScreen } from './screens/LoginScreen';
 import { HoyScreen } from './screens/HoyScreen';
 import { RegistroScreen } from './screens/RegistroScreen';
@@ -25,6 +27,11 @@ export const App: React.FC = () => {
     return (saved === 'dark' || saved === 'light') ? saved : 'light';
   });
 
+  // Simulador de Fechas (Provisional para pruebas continuas)
+  const [simulatedDate, setSimulatedDate] = useState<string>(() => {
+    return localStorage.getItem('vida_simulated_date') || toISODate();
+  });
+
   const [logs, setLogs] = useState<Record<string, DailyLog>>({});
   const [measurements, setMeasurements] = useState<BodyMeasurement[]>([]);
   const [participants, setParticipants] = useState<UserProfile[]>([]);
@@ -39,6 +46,19 @@ export const App: React.FC = () => {
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  const handleSimulatedDateChange = (newDate: string) => {
+    setSimulatedDate(newDate);
+    localStorage.setItem('vida_simulated_date', newDate);
+    showToast(`Simulando día: ${newDate}`);
+  };
+
+  const handleResetToRealToday = () => {
+    const real = toISODate();
+    setSimulatedDate(real);
+    localStorage.removeItem('vida_simulated_date');
+    showToast(`Regresado al día de hoy real (${real})`);
   };
 
   // Efecto para sincronizar el tema en el HTML
@@ -191,12 +211,20 @@ export const App: React.FC = () => {
         onLogout={handleLogout}
       />
 
+      {/* Barra de simulación de fechas para pruebas (fácil de remover cuando concluyan) */}
+      <DateSimulatorBar
+        currentDate={simulatedDate}
+        onChangeDate={handleSimulatedDateChange}
+        onResetToRealToday={handleResetToRealToday}
+      />
+
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         {currentTab === 'hoy' && (
           <HoyScreen
             user={user}
             logs={logs}
             challenge={currentChallenge}
+            currentDate={simulatedDate}
             onGoToRegister={() => setCurrentTab('registro')}
             onQuickUpdateLog={handleQuickUpdateLog}
           />
@@ -207,6 +235,7 @@ export const App: React.FC = () => {
             logs={logs}
             userId={user.id}
             challenge={currentChallenge}
+            currentDate={simulatedDate}
             onSave={handleSaveLog}
             onCancel={() => setCurrentTab('hoy')}
           />

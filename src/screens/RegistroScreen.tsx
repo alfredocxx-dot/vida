@@ -7,6 +7,7 @@ interface RegistroScreenProps {
   logs: Record<string, DailyLog>;
   userId: string;
   challenge: MonthlyChallenge;
+  currentDate?: string;
   onSave: (log: DailyLog) => void;
   onCancel?: () => void;
 }
@@ -15,10 +16,11 @@ export const RegistroScreen: React.FC<RegistroScreenProps> = ({
   logs, 
   userId, 
   challenge, 
+  currentDate,
   onSave,
   onCancel 
 }) => {
-  const today = toISODate();
+  const today = currentDate || toISODate();
   const yesterday = addDays(today, -1);
 
   const [selectedDate, setSelectedDate] = useState<string>(today);

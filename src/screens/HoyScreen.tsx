@@ -36,6 +36,7 @@ interface HoyScreenProps {
   user: UserProfile;
   logs: Record<string, DailyLog>;
   challenge: MonthlyChallenge;
+  currentDate?: string;
   onGoToRegister: () => void;
   onQuickUpdateLog: (updatedLog: DailyLog) => void;
 }
@@ -44,12 +45,13 @@ export const HoyScreen: React.FC<HoyScreenProps> = ({
   user, 
   logs, 
   challenge, 
+  currentDate,
   onGoToRegister,
   onQuickUpdateLog 
 }) => {
-  const today = toISODate();
+  const today = currentDate || toISODate();
   
-  // Log actual de hoy (o plantilla vacía para comenzar a registrar)
+  // Log actual de la fecha activa (o plantilla vacía para comenzar a registrar)
   const currentLog: DailyLog = logs[today] || {
     userId: user.id,
     fecha: today,
@@ -140,7 +142,7 @@ export const HoyScreen: React.FC<HoyScreenProps> = ({
       {/* ANILLO DE 3 PILARES CON EXPLICACIÓN CRISTALINA */}
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <RingProgress completedCount={completedCount} size={88} />
+          <RingProgress waterOk={waterOk} foodOk={foodOk} moveOk={moveOk} size={92} />
           <div style={{ flex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
               <span style={{ fontFamily: 'var(--f-display)', fontSize: '34px', fontWeight: 800, lineHeight: 1, color: completedCount === 3 ? 'var(--good)' : 'var(--brand)' }}>

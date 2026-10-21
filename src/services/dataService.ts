@@ -11,41 +11,56 @@ const STORAGE_KEYS = {
   PARTICIPANTS: 'vida_participants'
 };
 
-// Generador de datos iniciales locales para que la app se vea completa desde el inicio
-const getInitialLogs = (): Record<string, DailyLog> => {
-  const stored = localStorage.getItem(STORAGE_KEYS.LOGS);
+// Generador de datos iniciales locales aislados por usuario
+const getInitialLogs = (userId: string): Record<string, DailyLog> => {
+  const userKey = `${STORAGE_KEYS.LOGS}_${userId}`;
+  const stored = localStorage.getItem(userKey);
   if (stored) {
     try { 
       return JSON.parse(stored); 
     } catch (e) {}
   }
 
-  const logs: Record<string, DailyLog> = {};
-  const today = new Date().toISOString().slice(0, 10);
-  
-  // Generamos últimos 14 días con registros reales
-  for (let i = 14; i >= 1; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    const dateStr = d.toISOString().slice(0, 10);
-    const isSat = d.getUTCDay() === 6;
-    
-    logs[dateStr] = {
-      userId: 'usr-alfredo',
-      fecha: dateStr,
-      vasos: 8 + (i % 3 === 0 ? 1 : 0),
-      sinAzucar: true,
-      verduras: true,
-      ultra: true,
-      minutos: isSat ? 0 : 35,
-      tipo: 'Caminata',
-      pausa: true,
-      reto: true
-    };
+  // Migración retroactiva: Si es el administrador Alfredo y existían datos en la clave global previa
+  if (userId === 'usr-alfredo') {
+    const legacy = localStorage.getItem(STORAGE_KEYS.LOGS);
+    if (legacy) {
+      try {
+        const parsed = JSON.parse(legacy);
+        localStorage.setItem(userKey, JSON.stringify(parsed));
+        return parsed;
+      } catch (e) {}
+    }
+
+    // Si aún no tenía nada, generamos sus 14 días demostrativos
+    const logs: Record<string, DailyLog> = {};
+    for (let i = 14; i >= 1; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().slice(0, 10);
+      const isSat = d.getUTCDay() === 6;
+      
+      logs[dateStr] = {
+        userId: 'usr-alfredo',
+        fecha: dateStr,
+        vasos: 8 + (i % 3 === 0 ? 1 : 0),
+        sinAzucar: true,
+        verduras: true,
+        ultra: true,
+        minutos: isSat ? 0 : 35,
+        tipo: 'Caminata',
+        pausa: true,
+        reto: true
+      };
+    }
+    localStorage.setItem(userKey, JSON.stringify(logs));
+    return logs;
   }
 
-  localStorage.setItem(STORAGE_KEYS.LOGS, JSON.stringify(logs));
-  return logs;
+  // Para nuevos usuarios (como Ana o Benjamín), su historial comienza totalmente limpio y propio
+  const emptyLogs: Record<string, DailyLog> = {};
+  localStorage.setItem(userKey, JSON.stringify(emptyLogs));
+  return emptyLogs;
 };
 
 export const dataService = {
@@ -63,12 +78,12 @@ export const dataService = {
     localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
   },
 
-  // Registros diarios
+  // Registros diarios aislados por usuario
   async getDailyLogs(userId: string): Promise<Record<string, DailyLog>> {
-    // 1. Obtener caché local inmediato
-    const localLogs = getInitialLogs();
+    // 1. Obtener caché local inmediato del usuario
+    const localLogs = getInitialLogs(userId);
 
-    // 2. Si Firebase está activo, intentar sincronizar sin bloquear
+    // 2. Si Firebase está activo, sincronizar en segundo plano
     if (isFirebaseConfigured && db) {
       try {
         const q = query(collection(db, 'registros_diarios'), where('userId', '==', userId));
@@ -78,7 +93,7 @@ export const dataService = {
             const item = docSnap.data() as DailyLog;
             localLogs[item.fecha] = item;
           });
-          localStorage.setItem(STORAGE_KEYS.LOGS, JSON.stringify(localLogs));
+          localStorage.setItem(`${STORAGE_KEYS.LOGS}_${userId}`, JSON.stringify(localLogs));
         }
       } catch (err) {
         console.warn('Lectura Firestore en segundo plano, usando caché local:', err);
@@ -89,8 +104,8 @@ export const dataService = {
 
   // Guardado garantizado instantáneo (permite actualizar múltiples veces al día)
   saveDailyLog(log: DailyLog): void {
-    // 1. Guardar de forma sincrónica en localStorage para respuesta inmediata
-    const stored = localStorage.getItem(STORAGE_KEYS.LOGS);
+    const userKey = `${STORAGE_KEYS.LOGS}_${log.userId}`;
+    const stored = localStorage.getItem(userKey);
     let logs: Record<string, DailyLog> = {};
     if (stored) {
       try { logs = JSON.parse(stored); } catch (e) {}
@@ -99,9 +114,9 @@ export const dataService = {
       ...log,
       updatedAt: new Date().toISOString()
     };
-    localStorage.setItem(STORAGE_KEYS.LOGS, JSON.stringify(logs));
+    localStorage.setItem(userKey, JSON.stringify(logs));
 
-    // 2. Si Firebase está activo, sincronizar en la nube en segundo plano (no bloqueante)
+    // 2. Sincronizar en Firestore si está disponible
     if (isFirebaseConfigured && db) {
       const docId = `${log.userId}_${log.fecha}`;
       setDoc(doc(db, 'registros_diarios', docId), {
@@ -113,20 +128,25 @@ export const dataService = {
     }
   },
 
-  // Medidas Corporales
+  // Medidas Corporales aisladas por usuario
   async getMeasurements(userId: string): Promise<BodyMeasurement[]> {
-    const stored = localStorage.getItem(STORAGE_KEYS.MEASUREMENTS);
+    const userKey = `${STORAGE_KEYS.MEASUREMENTS}_${userId}`;
+    const stored = localStorage.getItem(userKey);
     if (stored) {
       try { return JSON.parse(stored); } catch (e) {}
     }
-    localStorage.setItem(STORAGE_KEYS.MEASUREMENTS, JSON.stringify(INITIAL_MEASUREMENTS));
-    return INITIAL_MEASUREMENTS;
+
+    // Filtrar únicamente las medidas que pertenezcan a este usuario
+    const userMeasurements = INITIAL_MEASUREMENTS.filter(m => m.userId === userId);
+    localStorage.setItem(userKey, JSON.stringify(userMeasurements));
+    return userMeasurements;
   },
 
   async saveMeasurement(item: BodyMeasurement): Promise<void> {
+    const userKey = `${STORAGE_KEYS.MEASUREMENTS}_${item.userId}`;
     const measurements = await this.getMeasurements(item.userId);
     measurements.push(item);
-    localStorage.setItem(STORAGE_KEYS.MEASUREMENTS, JSON.stringify(measurements));
+    localStorage.setItem(userKey, JSON.stringify(measurements));
 
     if (isFirebaseConfigured && db) {
       const docRef = doc(collection(db, 'medidas'));
