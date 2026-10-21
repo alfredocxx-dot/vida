@@ -18,23 +18,26 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onSelectTab })
   ] as const;
 
   return (
-    <nav className="bottom-nav">
-      {tabs.map(tab => {
-        const Icon = tab.icon;
-        const isActive = currentTab === tab.id;
-        return (
-          <button
-            key={tab.id}
-            className={`nav-item ${isActive ? 'active' : ''}`}
-            onClick={() => onSelectTab(tab.id)}
-          >
-            <div className="nav-ico">
-              <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
-            </div>
-            <span>{tab.label}</span>
-          </button>
-        );
-      })}
-    </nav>
+    <div className="bottom-nav-wrapper">
+      <nav className="bottom-nav" aria-label="Navegación principal">
+        {tabs.map(tab => {
+          const Icon = tab.icon;
+          const isActive = currentTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              className={`nav-item ${isActive ? 'active' : ''}`}
+              onClick={() => onSelectTab(tab.id)}
+              aria-label={tab.label}
+            >
+              <div className="nav-ico">
+                <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
+              </div>
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
+      </nav>
+    </div>
   );
 };

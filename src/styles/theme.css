@@ -157,7 +157,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   flex: 1;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 14px 18px 90px;
+  padding: 14px 18px 110px; /* Espacio inferior holgado para que el menú nunca tape contenido */
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -167,7 +167,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .app-header {
   position: sticky;
   top: 0;
-  z-index: 20;
+  z-index: 40;
   background: var(--bg);
   display: flex;
   align-items: center;
@@ -238,18 +238,25 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   box-shadow: var(--shadow);
 }
 
-/* Menú inferior navegación móvil */
-.bottom-nav {
-  position: absolute;
+/* MENÚ INFERIOR SIEMPRE VISIBLE Y FIJO */
+.bottom-nav-wrapper {
+  position: sticky;
   bottom: 0;
   left: 0;
   right: 0;
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  z-index: 100;
   background: var(--surface);
   border-top: 1px solid var(--line);
-  padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px));
-  z-index: 30;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.05);
+}
+
+.bottom-nav {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  padding: 6px 4px calc(8px + env(safe-area-inset-bottom, 0px));
+  max-width: 440px;
+  margin: 0 auto;
 }
 
 .nav-item {
@@ -261,6 +268,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   font-size: 11px;
   font-weight: 700;
   color: var(--ink-2);
+  transition: color 0.15s ease;
 }
 
 .nav-item.active {
@@ -273,32 +281,36 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   width: 44px;
   height: 28px;
   border-radius: 999px;
-  transition: background 0.2s ease;
+  transition: background 0.2s ease, transform 0.15s ease;
 }
 
 .nav-item.active .nav-ico {
   background: var(--surface-2);
+  transform: translateY(-2px);
 }
 
-/* Pilares */
+/* Pilares Interactivos */
 .pillar-row {
-  display: grid;
-  grid-template-columns: 44px 1fr auto;
-  gap: 12px;
-  align-items: center;
   background: var(--surface);
-  border: 1px solid var(--line);
+  border: 1.5px solid var(--line);
   border-radius: var(--r-md);
-  padding: 12px 14px;
+  padding: 14px;
   box-shadow: var(--shadow);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.pillar-row.completed {
+  border-color: var(--good);
+  background: var(--surface);
 }
 
 .pi-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 14px;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
   display: grid;
   place-items: center;
+  flex-shrink: 0;
 }
 
 .p-water .pi-icon { background: var(--water-soft); color: var(--water-ink); }
@@ -333,6 +345,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   border: 2px solid var(--line);
   color: transparent;
   transition: all 0.2s ease;
+  flex-shrink: 0;
 }
 
 .check-circle.checked {
@@ -341,25 +354,52 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   color: #fff;
 }
 
-/* Toast */
+/* Botones interactivos de acción rápida en tarjetas */
+.quick-action-btn {
+  padding: 6px 12px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  border: 1.5px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  transition: all 0.15s ease;
+}
+
+.quick-action-btn.active-yes {
+  background: var(--good-soft);
+  border-color: var(--good);
+  color: var(--good);
+}
+
+.quick-action-btn.active-no {
+  background: var(--bad-soft);
+  border-color: var(--bad);
+  color: var(--bad);
+}
+
+/* Toast flotante de confirmación */
 .toast-notice {
   position: fixed;
   left: 50%;
   bottom: calc(75px + env(safe-area-inset-bottom, 0px));
   transform: translateX(-50%) translateY(20px);
-  background: var(--ink);
-  color: var(--bg);
-  padding: 12px 20px;
-  border-radius: 14px;
+  background: #1A2836;
+  color: #FFFFFF;
+  padding: 14px 22px;
+  border-radius: 16px;
   font-weight: 700;
   font-size: 14px;
-  box-shadow: var(--shadow);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.25);
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.25s, transform 0.25s;
-  z-index: 100;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  z-index: 200;
   max-width: calc(100% - 40px);
   text-align: center;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .toast-notice.visible {

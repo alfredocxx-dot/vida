@@ -1,7 +1,7 @@
 import { DailyLog, BodyMeasurement, AttendanceRecord, UserProfile } from '../types';
 import { db, isFirebaseConfigured } from './firebase';
 import { DEFAULT_ADMIN, INITIAL_MEASUREMENTS, MOCK_OFFICE_PARTICIPANTS, MOCK_ATTENDANCE } from './mockData';
-import { collection, doc, setDoc, getDoc, getDocs, query, where } from 'firebase/firestore';
+import { collection, doc, setDoc, getDocs, query, where } from 'firebase/firestore';
 
 const STORAGE_KEYS = {
   USER: 'vida_user_profile',
@@ -15,14 +15,16 @@ const STORAGE_KEYS = {
 const getInitialLogs = (): Record<string, DailyLog> => {
   const stored = localStorage.getItem(STORAGE_KEYS.LOGS);
   if (stored) {
-    try { return JSON.parse(stored); } catch (e) { /* fallback */ }
+    try { 
+      return JSON.parse(stored); 
+    } catch (e) {}
   }
 
   const logs: Record<string, DailyLog> = {};
   const today = new Date().toISOString().slice(0, 10);
   
-  // Generamos últimos 20 días con registros reales
-  for (let i = 20; i >= 1; i--) {
+  // Generamos últimos 14 días con registros reales
+  for (let i = 14; i >= 1; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
     const dateStr = d.toISOString().slice(0, 10);
@@ -41,20 +43,6 @@ const getInitialLogs = (): Record<string, DailyLog> => {
       reto: true
     };
   }
-
-  // Hoy con datos parciales
-  logs[today] = {
-    userId: 'usr-alfredo',
-    fecha: today,
-    vasos: 5,
-    sinAzucar: true,
-    verduras: true,
-    ultra: true,
-    minutos: 20,
-    tipo: 'Caminata',
-    pausa: null,
-    reto: null
-  };
 
   localStorage.setItem(STORAGE_KEYS.LOGS, JSON.stringify(logs));
   return logs;
@@ -77,40 +65,51 @@ export const dataService = {
 
   // Registros diarios
   async getDailyLogs(userId: string): Promise<Record<string, DailyLog>> {
+    // 1. Obtener caché local inmediato
+    const localLogs = getInitialLogs();
+
+    // 2. Si Firebase está activo, intentar sincronizar sin bloquear
     if (isFirebaseConfigured && db) {
       try {
         const q = query(collection(db, 'registros_diarios'), where('userId', '==', userId));
         const snap = await getDocs(q);
-        const map: Record<string, DailyLog> = {};
-        snap.forEach(docSnap => {
-          const item = docSnap.data() as DailyLog;
-          map[item.fecha] = item;
-        });
-        if (Object.keys(map).length > 0) return map;
+        if (!snap.empty) {
+          snap.forEach(docSnap => {
+            const item = docSnap.data() as DailyLog;
+            localLogs[item.fecha] = item;
+          });
+          localStorage.setItem(STORAGE_KEYS.LOGS, JSON.stringify(localLogs));
+        }
       } catch (err) {
-        console.warn('Error leyendo de Firestore, usando caché local:', err);
+        console.warn('Lectura Firestore en segundo plano, usando caché local:', err);
       }
     }
-    return getInitialLogs();
+    return localLogs;
   },
 
-  async saveDailyLog(log: DailyLog): Promise<void> {
-    // 1. Guardar localmente
-    const logs = getInitialLogs();
-    logs[log.fecha] = log;
+  // Guardado garantizado instantáneo (permite actualizar múltiples veces al día)
+  saveDailyLog(log: DailyLog): void {
+    // 1. Guardar de forma sincrónica en localStorage para respuesta inmediata
+    const stored = localStorage.getItem(STORAGE_KEYS.LOGS);
+    let logs: Record<string, DailyLog> = {};
+    if (stored) {
+      try { logs = JSON.parse(stored); } catch (e) {}
+    }
+    logs[log.fecha] = {
+      ...log,
+      updatedAt: new Date().toISOString()
+    };
     localStorage.setItem(STORAGE_KEYS.LOGS, JSON.stringify(logs));
 
-    // 2. Si Firebase está activo, sincronizar con Firestore
+    // 2. Si Firebase está activo, sincronizar en la nube en segundo plano (no bloqueante)
     if (isFirebaseConfigured && db) {
-      try {
-        const docId = `${log.userId}_${log.fecha}`;
-        await setDoc(doc(db, 'registros_diarios', docId), {
-          ...log,
-          updatedAt: new Date().toISOString()
-        }, { merge: true });
-      } catch (err) {
-        console.error('Error guardando en Firestore:', err);
-      }
+      const docId = `${log.userId}_${log.fecha}`;
+      setDoc(doc(db, 'registros_diarios', docId), {
+        ...log,
+        updatedAt: new Date().toISOString()
+      }, { merge: true }).catch(err => {
+        console.warn('Sincronización con Firestore guardada localmente:', err);
+      });
     }
   },
 
@@ -130,16 +129,14 @@ export const dataService = {
     localStorage.setItem(STORAGE_KEYS.MEASUREMENTS, JSON.stringify(measurements));
 
     if (isFirebaseConfigured && db) {
-      try {
-        const docRef = doc(collection(db, 'medidas'));
-        await setDoc(docRef, item);
-      } catch (err) {
-        console.error('Error guardando medida en Firestore:', err);
-      }
+      const docRef = doc(collection(db, 'medidas'));
+      setDoc(docRef, item).catch(err => {
+        console.warn('Medida guardada localmente, sincronización en espera:', err);
+      });
     }
   },
 
-  // Participantes de la oficina (para el Administrador)
+  // Participantes de la oficina
   getParticipants(): UserProfile[] {
     const stored = localStorage.getItem(STORAGE_KEYS.PARTICIPANTS);
     if (stored) {

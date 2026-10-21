@@ -113,11 +113,21 @@ export const App: React.FC = () => {
     showToast('¡Configuración inicial completada con éxito!');
   };
 
-  const handleSaveLog = async (newLog: DailyLog) => {
-    await dataService.saveDailyLog(newLog);
+  // Guardado garantizado instantáneo (permite actualizar múltiples veces al día)
+  const handleSaveLog = (newLog: DailyLog) => {
+    // 1. Actualización inmediata en memoria de la UI
     setLogs(prev => ({ ...prev, [newLog.fecha]: newLog }));
     setCurrentTab('hoy');
-    showToast('¡Registro guardado con éxito!');
+    showToast('¡Registro guardado y actualizado!');
+
+    // 2. Persistencia en disco y nube
+    dataService.saveDailyLog(newLog);
+  };
+
+  // Actualización rápida desde las tarjetas interactivas de Hoy
+  const handleQuickUpdateLog = (updatedLog: DailyLog) => {
+    setLogs(prev => ({ ...prev, [updatedLog.fecha]: updatedLog }));
+    dataService.saveDailyLog(updatedLog);
   };
 
   const handleAddMeasurement = async (item: BodyMeasurement) => {
@@ -188,6 +198,7 @@ export const App: React.FC = () => {
             logs={logs}
             challenge={currentChallenge}
             onGoToRegister={() => setCurrentTab('registro')}
+            onQuickUpdateLog={handleQuickUpdateLog}
           />
         )}
 
@@ -197,6 +208,7 @@ export const App: React.FC = () => {
             userId={user.id}
             challenge={currentChallenge}
             onSave={handleSaveLog}
+            onCancel={() => setCurrentTab('hoy')}
           />
         )}
 
@@ -220,6 +232,7 @@ export const App: React.FC = () => {
         )}
       </main>
 
+      {/* MENÚ INFERIOR SIEMPRE VISIBLE */}
       <BottomNav currentTab={currentTab} onSelectTab={setCurrentTab} />
 
       {/* Modal de Onboarding si el usuario es nuevo */}

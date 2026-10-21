@@ -1,5 +1,5 @@
 import React from 'react';
-import { UserProfile, DailyLog, MonthlyChallenge } from '../types';
+import { UserProfile, DailyLog, MonthlyChallenge, ActivityType } from '../types';
 import { 
   toISODate, 
   formatLongDate, 
@@ -13,10 +13,23 @@ import {
   addDays,
   DIAS_LETRA,
   parseISODate,
-  MESES
+  MESES,
+  isSaturday
 } from '../utils/helpers';
 import { RingProgress } from '../components/RingProgress';
-import { Droplet, Utensils, Activity, Flame, Bell, Check, ArrowRight } from 'lucide-react';
+import { 
+  Droplet, 
+  Utensils, 
+  Activity, 
+  Flame, 
+  Bell, 
+  Check, 
+  Edit3, 
+  Plus, 
+  Minus,
+  Sparkles,
+  HelpCircle
+} from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 interface HoyScreenProps {
@@ -24,11 +37,31 @@ interface HoyScreenProps {
   logs: Record<string, DailyLog>;
   challenge: MonthlyChallenge;
   onGoToRegister: () => void;
+  onQuickUpdateLog: (updatedLog: DailyLog) => void;
 }
 
-export const HoyScreen: React.FC<HoyScreenProps> = ({ user, logs, challenge, onGoToRegister }) => {
+export const HoyScreen: React.FC<HoyScreenProps> = ({ 
+  user, 
+  logs, 
+  challenge, 
+  onGoToRegister,
+  onQuickUpdateLog 
+}) => {
   const today = toISODate();
-  const currentLog = logs[today] || null;
+  
+  // Log actual de hoy (o plantilla vacía para comenzar a registrar)
+  const currentLog: DailyLog = logs[today] || {
+    userId: user.id,
+    fecha: today,
+    vasos: 0,
+    sinAzucar: null,
+    verduras: null,
+    ultra: null,
+    minutos: 0,
+    tipo: 'Caminata',
+    pausa: null,
+    reto: null
+  };
 
   const waterOk = isWaterComplete(currentLog);
   const foodOk = isFoodComplete(currentLog);
@@ -36,16 +69,10 @@ export const HoyScreen: React.FC<HoyScreenProps> = ({ user, logs, challenge, onG
   const dayOk = isDayComplete(currentLog, today);
 
   const completedCount = [waterOk, foodOk, moveOk].filter(Boolean).length;
-
   const currentStreak = calculateCurrentStreak(logs, today, isDayComplete, false);
   const monday = getMondayOfWeek(today);
   const weeklyMinutes = getWeeklyActivityMinutes(logs, monday);
-
-  // Mensaje de faltantes
-  const missing: string[] = [];
-  if (!waterOk) missing.push('agua');
-  if (!foodOk) missing.push('nutrición');
-  if (!moveOk) missing.push('actividad');
+  const isSat = isSaturday(today);
 
   // Lanzar confetti al lograr los 3 pilares
   React.useEffect(() => {
@@ -58,11 +85,51 @@ export const HoyScreen: React.FC<HoyScreenProps> = ({ user, logs, challenge, onG
     }
   }, [completedCount]);
 
+  // Actualizaciones rápidas pilar por pilar
+  const updateWater = (delta: number) => {
+    const newVasos = Math.max(0, Math.min(15, (currentLog.vasos || 0) + delta));
+    onQuickUpdateLog({
+      ...currentLog,
+      vasos: newVasos,
+      sinAzucar: currentLog.sinAzucar ?? true
+    });
+  };
+
+  const toggleSinAzucar = (val: boolean) => {
+    onQuickUpdateLog({
+      ...currentLog,
+      sinAzucar: currentLog.sinAzucar === val ? null : val
+    });
+  };
+
+  const toggleVerduras = (val: boolean) => {
+    onQuickUpdateLog({
+      ...currentLog,
+      verduras: currentLog.verduras === val ? null : val
+    });
+  };
+
+  const toggleUltra = (val: boolean) => {
+    onQuickUpdateLog({
+      ...currentLog,
+      ultra: currentLog.ultra === val ? null : val
+    });
+  };
+
+  const addMinutos = (mins: number) => {
+    onQuickUpdateLog({
+      ...currentLog,
+      minutos: (currentLog.minutos || 0) + mins
+    });
+  };
+
+  const hasAnyRecord = (currentLog.vasos || 0) > 0 || currentLog.sinAzucar !== null || currentLog.verduras !== null || (currentLog.minutos || 0) > 0;
+
   return (
     <div className="screen-scrollable">
-      {/* Saludo */}
+      {/* Saludo y Fecha */}
       <div>
-        <h1 style={{ fontSize: '24px', fontWeight: 700 }}>
+        <h1 style={{ fontSize: '24px', fontWeight: 800 }}>
           Buenos días, {user.nombre.split(' ')[0]}
         </h1>
         <p style={{ margin: '4px 0 0', color: 'var(--ink-2)', fontSize: '14px' }}>
@@ -70,108 +137,323 @@ export const HoyScreen: React.FC<HoyScreenProps> = ({ user, logs, challenge, onG
         </p>
       </div>
 
-      {/* Resumen Anillo */}
-      <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-        <RingProgress completedCount={completedCount} />
-        <div>
-          <div style={{ fontFamily: 'var(--f-display)', fontSize: '32px', fontWeight: 800, lineHeight: 1 }}>
-            {completedCount} de 3
+      {/* ANILLO DE 3 PILARES CON EXPLICACIÓN CRISTALINA */}
+      <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <RingProgress completedCount={completedCount} size={88} />
+          <div style={{ flex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+              <span style={{ fontFamily: 'var(--f-display)', fontSize: '34px', fontWeight: 800, lineHeight: 1, color: completedCount === 3 ? 'var(--good)' : 'var(--brand)' }}>
+                {completedCount} de 3
+              </span>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--ink-2)' }}>
+                pilares de hoy
+              </span>
+            </div>
+
+            <p style={{ margin: '6px 0 0', fontSize: '13px', color: 'var(--ink-2)', lineHeight: 1.35 }}>
+              {completedCount === 3 ? (
+                <b style={{ color: 'var(--good)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                  <Sparkles size={14} /> ¡Felicidades! Día completo cumplido
+                </b>
+              ) : (
+                <span>
+                  Cada pilar cumplido llena <b>1/3</b> del círculo. Cumple los 3 para asegurar tu racha.
+                </span>
+              )}
+            </p>
           </div>
-          <div style={{ color: 'var(--ink-2)', fontSize: '13px', marginTop: '2px' }}>
-            pilares cumplidos hoy
+        </div>
+
+        {/* Estado en vivo de los 3 pilares */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, 1fr)',
+          gap: '8px',
+          paddingTop: '12px',
+          borderTop: '1px solid var(--line)',
+          textAlign: 'center',
+          fontSize: '11px'
+        }}>
+          <div style={{
+            padding: '8px 4px',
+            borderRadius: '10px',
+            background: waterOk ? 'var(--good-soft)' : 'var(--water-soft)',
+            color: waterOk ? 'var(--good)' : 'var(--water-ink)',
+            fontWeight: 700
+          }}>
+            <div>💧 Hidratación</div>
+            <div style={{ marginTop: '2px', fontSize: '10px' }}>
+              {waterOk ? '✓ Cumplido' : `${currentLog.vasos || 0}/8 vasos`}
+            </div>
           </div>
-          <div style={{ fontSize: '13px', marginTop: '6px', fontWeight: 600 }}>
-            {completedCount === 3 ? (
-              <span style={{ color: 'var(--good)' }}>¡Excelente! Día completo</span>
-            ) : (
-              <span>Te falta: <span style={{ color: 'var(--brand)' }}>{missing.join(', ')}</span></span>
-            )}
+
+          <div style={{
+            padding: '8px 4px',
+            borderRadius: '10px',
+            background: foodOk ? 'var(--good-soft)' : 'var(--food-soft)',
+            color: foodOk ? 'var(--good)' : 'var(--food-ink)',
+            fontWeight: 700
+          }}>
+            <div>🥗 Nutrición</div>
+            <div style={{ marginTop: '2px', fontSize: '10px' }}>
+              {foodOk ? '✓ Cumplido' : (currentLog.verduras ? 'Falta sin ultra' : 'Pendiente')}
+            </div>
+          </div>
+
+          <div style={{
+            padding: '8px 4px',
+            borderRadius: '10px',
+            background: moveOk ? 'var(--good-soft)' : 'var(--move-soft)',
+            color: moveOk ? 'var(--good)' : 'var(--move-ink)',
+            fontWeight: 700
+          }}>
+            <div>🏃 Actividad</div>
+            <div style={{ marginTop: '2px', fontSize: '10px' }}>
+              {moveOk ? (isSat ? '✓ Reposo' : '✓ Cumplido') : `${currentLog.minutos || 0}/30 min`}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Tarjetas de Pilares */}
-      <div style={{ display: 'grid', gap: '10px' }}>
-        {/* Pilar Agua */}
-        <div className="pillar-row p-water">
-          <div className="pi-icon">
-            <Droplet size={22} />
-          </div>
-          <div style={{ minWidth: 0 }}>
-            <h3 style={{ fontSize: '15px', fontWeight: 700 }}>Hidratación</h3>
-            <p style={{ margin: '2px 0 0', fontSize: '13px', color: 'var(--ink-2)' }}>
-              <span className="num" style={{ fontWeight: 700, color: 'var(--ink)' }}>{currentLog?.vasos ?? 0} de 8</span> vasos · sin refrescos: {currentLog?.sinAzucar === true ? 'Sí' : currentLog?.sinAzucar === false ? 'No' : 'pendiente'}
-            </p>
-            <div className="bar-track">
-              <div 
-                className="bar-fill" 
-                style={{ width: `${Math.min(100, Math.round(((currentLog?.vasos ?? 0) / 8) * 100))}%` }} 
-              />
+      {/* REGISTRO PILAR POR PILAR (INTERACTIVO DIRECTO) */}
+      <div style={{ display: 'grid', gap: '12px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h2 style={{ fontSize: '16px', fontWeight: 800 }}>Registrar hábitos de hoy</h2>
+          <span style={{ fontSize: '11px', color: 'var(--ink-2)', fontWeight: 600 }}>Toca para actualizar</span>
+        </div>
+
+        {/* 1. TARJETA INTERACTIVA DE HIDRATACIÓN */}
+        <div className={`pillar-row p-water ${waterOk ? 'completed' : ''}`}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%' }}>
+            <div className="pi-icon">
+              <Droplet size={22} />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ fontSize: '15px', fontWeight: 700 }}>Hidratación</h3>
+                <span style={{ fontSize: '12px', fontWeight: 800, color: waterOk ? 'var(--good)' : 'var(--water-ink)' }}>
+                  {currentLog.vasos || 0} de 8 vasos
+                </span>
+              </div>
+              <p style={{ margin: '2px 0 0', fontSize: '12px', color: 'var(--ink-2)' }}>
+                Meta: 8 vasos de agua pura y evitar refrescos
+              </p>
+            </div>
+            <div className={`check-circle ${waterOk ? 'checked' : ''}`}>
+              <Check size={16} strokeWidth={3} />
             </div>
           </div>
-          <div className={`check-circle ${waterOk ? 'checked' : ''}`}>
-            <Check size={16} strokeWidth={3} />
+
+          {/* Controles interactivos directos */}
+          <div style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '8px',
+            marginTop: '12px',
+            paddingTop: '10px',
+            borderTop: '1px solid var(--line)'
+          }}>
+            {/* Sumar / Restar vasos */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button
+                onClick={() => updateWater(-1)}
+                className="quick-action-btn"
+                style={{ padding: '6px 10px', fontSize: '14px', lineHeight: 1 }}
+                title="Quitar un vaso"
+              >
+                <Minus size={14} />
+              </button>
+              <span className="num" style={{ fontWeight: 800, fontSize: '14px', minWidth: '60px', textAlign: 'center' }}>
+                {currentLog.vasos || 0} vasos
+              </span>
+              <button
+                onClick={() => updateWater(1)}
+                className="quick-action-btn"
+                style={{ padding: '6px 10px', fontSize: '14px', lineHeight: 1, background: 'var(--water-soft)', borderColor: 'var(--water)', color: 'var(--water-ink)' }}
+                title="Sumar un vaso"
+              >
+                <Plus size={14} /> +1 vaso
+              </button>
+            </div>
+
+            {/* Toggle sin azucaradas */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', fontWeight: 700 }}>
+              <span style={{ color: 'var(--ink-2)' }}>¿Sin refresco?</span>
+              <button
+                onClick={() => toggleSinAzucar(true)}
+                className={`quick-action-btn ${currentLog.sinAzucar === true ? 'active-yes' : ''}`}
+                style={{ padding: '4px 8px' }}
+              >
+                Sí
+              </button>
+              <button
+                onClick={() => toggleSinAzucar(false)}
+                className={`quick-action-btn ${currentLog.sinAzucar === false ? 'active-no' : ''}`}
+                style={{ padding: '4px 8px' }}
+              >
+                No
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Pilar Nutrición */}
-        <div className="pillar-row p-food">
-          <div className="pi-icon">
-            <Utensils size={22} />
-          </div>
-          <div style={{ minWidth: 0 }}>
-            <h3 style={{ fontSize: '15px', fontWeight: 700 }}>Nutrición</h3>
-            <p style={{ margin: '2px 0 0', fontSize: '13px', color: 'var(--ink-2)' }}>
-              Verduras en 2 comidas: {currentLog?.verduras === true ? 'Sí' : currentLog?.verduras === false ? 'No' : 'pendiente'} · sin ultraprocesados: {currentLog?.ultra === true ? 'Sí' : currentLog?.ultra === false ? 'No' : 'pendiente'}
-            </p>
-            <div className="bar-track">
-              <div 
-                className="bar-fill" 
-                style={{ width: `${((currentLog?.verduras ? 50 : 0) + (currentLog?.ultra ? 50 : 0))}%` }} 
-              />
+        {/* 2. TARJETA INTERACTIVA DE NUTRICIÓN */}
+        <div className={`pillar-row p-food ${foodOk ? 'completed' : ''}`}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%' }}>
+            <div className="pi-icon">
+              <Utensils size={22} />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ fontSize: '15px', fontWeight: 700 }}>Nutrición</h3>
+                <span style={{ fontSize: '12px', fontWeight: 800, color: foodOk ? 'var(--good)' : 'var(--food-ink)' }}>
+                  {foodOk ? 'Completo' : 'Pendiente'}
+                </span>
+              </div>
+              <p style={{ margin: '2px 0 0', fontSize: '12px', color: 'var(--ink-2)' }}>
+                Verduras en 2 comidas y evitar ultraprocesados
+              </p>
+            </div>
+            <div className={`check-circle ${foodOk ? 'checked' : ''}`}>
+              <Check size={16} strokeWidth={3} />
             </div>
           </div>
-          <div className={`check-circle ${foodOk ? 'checked' : ''}`}>
-            <Check size={16} strokeWidth={3} />
+
+          {/* Controles interactivos directos */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: '8px',
+            marginTop: '12px',
+            paddingTop: '10px',
+            borderTop: '1px solid var(--line)'
+          }}>
+            <div>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--ink-2)', marginBottom: '4px' }}>
+                Verduras en 2 comidas:
+              </div>
+              <div style={{ display: 'flex', gap: '4px' }}>
+                <button
+                  onClick={() => toggleVerduras(true)}
+                  className={`quick-action-btn ${currentLog.verduras === true ? 'active-yes' : ''}`}
+                  style={{ flex: 1, padding: '5px' }}
+                >
+                  Sí
+                </button>
+                <button
+                  onClick={() => toggleVerduras(false)}
+                  className={`quick-action-btn ${currentLog.verduras === false ? 'active-no' : ''}`}
+                  style={{ flex: 1, padding: '5px' }}
+                >
+                  No
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--ink-2)', marginBottom: '4px' }}>
+                Sin ultraprocesados:
+              </div>
+              <div style={{ display: 'flex', gap: '4px' }}>
+                <button
+                  onClick={() => toggleUltra(true)}
+                  className={`quick-action-btn ${currentLog.ultra === true ? 'active-yes' : ''}`}
+                  style={{ flex: 1, padding: '5px' }}
+                >
+                  Sí
+                </button>
+                <button
+                  onClick={() => toggleUltra(false)}
+                  className={`quick-action-btn ${currentLog.ultra === false ? 'active-no' : ''}`}
+                  style={{ flex: 1, padding: '5px' }}
+                >
+                  No
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Pilar Actividad */}
-        <div className="pillar-row p-move">
-          <div className="pi-icon">
-            <Activity size={22} />
-          </div>
-          <div style={{ minWidth: 0 }}>
-            <h3 style={{ fontSize: '15px', fontWeight: 700 }}>Actividad física</h3>
-            <p style={{ margin: '2px 0 0', fontSize: '13px', color: 'var(--ink-2)' }}>
-              <span className="num" style={{ fontWeight: 700, color: 'var(--ink)' }}>{currentLog?.minutos ?? 0} de 30</span> min hoy · semana <span className="num" style={{ fontWeight: 700 }}>{weeklyMinutes} de 150</span>
-            </p>
-            <div className="bar-track">
-              <div 
-                className="bar-fill" 
-                style={{ width: `${Math.min(100, Math.round(((currentLog?.minutos ?? 0) / 30) * 100))}%` }} 
-              />
+        {/* 3. TARJETA INTERACTIVA DE ACTIVIDAD FÍSICA */}
+        <div className={`pillar-row p-move ${moveOk ? 'completed' : ''}`}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%' }}>
+            <div className="pi-icon">
+              <Activity size={22} />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ fontSize: '15px', fontWeight: 700 }}>Actividad física</h3>
+                <span style={{ fontSize: '12px', fontWeight: 800, color: moveOk ? 'var(--good)' : 'var(--move-ink)' }}>
+                  {isSat ? 'Sábado reposo' : `${currentLog.minutos || 0} de 30 min`}
+                </span>
+              </div>
+              <p style={{ margin: '2px 0 0', fontSize: '12px', color: 'var(--ink-2)' }}>
+                {isSat ? 'El sábado no rompe tu racha de constancia' : `Meta diaria 30 min · Semana: ${weeklyMinutes} de 150 min`}
+              </p>
+            </div>
+            <div className={`check-circle ${moveOk ? 'checked' : ''}`}>
+              <Check size={16} strokeWidth={3} />
             </div>
           </div>
-          <div className={`check-circle ${moveOk ? 'checked' : ''}`}>
-            <Check size={16} strokeWidth={3} />
+
+          {/* Selector de minutos en 1 toque */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '6px',
+            marginTop: '12px',
+            paddingTop: '10px',
+            borderTop: '1px solid var(--line)'
+          }}>
+            <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--ink-2)' }}>Sumar tiempo:</span>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <button
+                onClick={() => addMinutos(15)}
+                className="quick-action-btn"
+                style={{ padding: '5px 8px', fontSize: '11px' }}
+              >
+                +15 min
+              </button>
+              <button
+                onClick={() => addMinutos(30)}
+                className="quick-action-btn"
+                style={{ padding: '5px 8px', fontSize: '11px', background: 'var(--move-soft)', borderColor: 'var(--move)', color: 'var(--move-ink)' }}
+              >
+                +30 min
+              </button>
+              <button
+                onClick={() => onQuickUpdateLog({ ...currentLog, minutos: 45 })}
+                className="quick-action-btn"
+                style={{ padding: '5px 8px', fontSize: '11px' }}
+              >
+                45 min
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Botón de Registro */}
-      <button className="btn-primary" onClick={onGoToRegister}>
-        <span>Actualizar mi registro de hoy</span>
-        <ArrowRight size={18} />
+      {/* BOTÓN PRINCIPAL DUAL: REGISTRAR O MODIFICAR */}
+      <button 
+        className="btn-primary" 
+        onClick={onGoToRegister}
+        style={{ marginTop: '4px' }}
+      >
+        <Edit3 size={18} />
+        <span>{hasAnyRecord ? 'Modificar o Ver Registro Completo de Hoy' : 'Registrar Todo el Día Completo'}</span>
       </button>
 
-      {/* Racha */}
+      {/* Racha de días completos */}
       <div className="card">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
             <h3 style={{ fontSize: '15px', fontWeight: 700 }}>Racha de días completos</h3>
             <div style={{ color: 'var(--ink-2)', fontSize: '12px', marginTop: '2px' }}>
-              Sin romper la cadena
+              Días consecutivos con los 3 pilares logrados
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--move)' }}>
@@ -213,20 +495,20 @@ export const HoyScreen: React.FC<HoyScreenProps> = ({ user, logs, challenge, onG
         </div>
       </div>
 
-      {/* Reto del mes */}
+      {/* Reto del mes actual */}
       <div className="card" style={{ borderLeft: '6px solid var(--food)' }}>
         <div style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--food-ink)', letterSpacing: '0.06em' }}>
-          Reto de {MESES[new Date().getMonth()]}
+          Reto de {MESES[new Date().getMonth()]} · Trimestre de {challenge.trimestre}
         </div>
         <h3 style={{ margin: '4px 0 2px', fontSize: '16px', fontWeight: 700 }}>
           {challenge.titulo}
         </h3>
         <p style={{ margin: 0, fontSize: '13px', color: 'var(--ink-2)' }}>
-          {challenge.pregunta} Contéstalo en tu registro.
+          {challenge.pregunta} Contéstalo en tu registro para ganar la insignia mensual.
         </p>
       </div>
 
-      {/* Pausa Activa */}
+      {/* Pausa Activa de las 12:00 */}
       <div className="card" style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
         <div style={{
           width: '44px',

@@ -1,20 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { DailyLog, ActivityType, MonthlyChallenge } from '../types';
 import { toISODate, addDays, formatLongDate, parseISODate, isSaturday } from '../utils/helpers';
-import { Droplet, Utensils, Activity, Flag, Plus, Minus, Check } from 'lucide-react';
+import { Droplet, Utensils, Activity, Flag, Plus, Minus, Check, ArrowLeft } from 'lucide-react';
 
 interface RegistroScreenProps {
   logs: Record<string, DailyLog>;
   userId: string;
   challenge: MonthlyChallenge;
   onSave: (log: DailyLog) => void;
+  onCancel?: () => void;
 }
 
-export const RegistroScreen: React.FC<RegistroScreenProps> = ({ logs, userId, challenge, onSave }) => {
+export const RegistroScreen: React.FC<RegistroScreenProps> = ({ 
+  logs, 
+  userId, 
+  challenge, 
+  onSave,
+  onCancel 
+}) => {
   const today = toISODate();
   const yesterday = addDays(today, -1);
 
   const [selectedDate, setSelectedDate] = useState<string>(today);
+  const [isSavedAnimation, setIsSavedAnimation] = useState(false);
   const [draft, setDraft] = useState<DailyLog>({
     userId,
     fecha: today,
@@ -23,12 +31,12 @@ export const RegistroScreen: React.FC<RegistroScreenProps> = ({ logs, userId, ch
     verduras: null,
     ultra: null,
     minutos: null,
-    tipo: null,
+    tipo: 'Caminata',
     pausa: null,
     reto: null
   });
 
-  // Cargar registro de la fecha seleccionada
+  // Cargar registro de la fecha seleccionada (o valores limpios)
   useEffect(() => {
     const existing = logs[selectedDate];
     if (existing) {
@@ -42,7 +50,7 @@ export const RegistroScreen: React.FC<RegistroScreenProps> = ({ logs, userId, ch
         verduras: null,
         ultra: null,
         minutos: null,
-        tipo: null,
+        tipo: 'Caminata',
         pausa: null,
         reto: null
       });
@@ -60,6 +68,9 @@ export const RegistroScreen: React.FC<RegistroScreenProps> = ({ logs, userId, ch
   };
 
   const handleSave = () => {
+    setIsSavedAnimation(true);
+    
+    // Guardado instantáneo
     onSave({
       ...draft,
       fecha: selectedDate,
@@ -69,11 +80,23 @@ export const RegistroScreen: React.FC<RegistroScreenProps> = ({ logs, userId, ch
 
   return (
     <div className="screen-scrollable">
-      <div>
-        <h1 style={{ fontSize: '24px', fontWeight: 700 }}>Registro del día</h1>
-        <p style={{ margin: '4px 0 0', color: 'var(--ink-2)', fontSize: '14px' }}>
-          {formatLongDate(selectedDate)}
-        </p>
+      {/* Cabecera con botón volver */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div>
+          <h1 style={{ fontSize: '24px', fontWeight: 800 }}>Registro del día</h1>
+          <p style={{ margin: '4px 0 0', color: 'var(--ink-2)', fontSize: '14px' }}>
+            {formatLongDate(selectedDate)}
+          </p>
+        </div>
+        {onCancel && (
+          <button 
+            onClick={onCancel}
+            className="btn-ghost" 
+            style={{ width: 'auto', padding: '6px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}
+          >
+            <ArrowLeft size={14} /> Volver
+          </button>
+        )}
       </div>
 
       {/* Tabs Hoy / Ayer */}
@@ -210,31 +233,15 @@ export const RegistroScreen: React.FC<RegistroScreenProps> = ({ logs, userId, ch
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
             <button
               onClick={() => handleYnToggle('sinAzucar', true)}
-              style={{
-                padding: '12px',
-                borderRadius: '12px',
-                fontWeight: 700,
-                fontSize: '14px',
-                border: '1.5px solid',
-                borderColor: draft.sinAzucar === true ? 'var(--good)' : 'var(--line)',
-                background: draft.sinAzucar === true ? 'var(--good-soft)' : 'var(--surface)',
-                color: draft.sinAzucar === true ? 'var(--good)' : 'var(--ink)'
-              }}
+              className={`quick-action-btn ${draft.sinAzucar === true ? 'active-yes' : ''}`}
+              style={{ padding: '12px', fontSize: '14px' }}
             >
               Sí
             </button>
             <button
               onClick={() => handleYnToggle('sinAzucar', false)}
-              style={{
-                padding: '12px',
-                borderRadius: '12px',
-                fontWeight: 700,
-                fontSize: '14px',
-                border: '1.5px solid',
-                borderColor: draft.sinAzucar === false ? 'var(--bad)' : 'var(--line)',
-                background: draft.sinAzucar === false ? 'var(--bad-soft)' : 'var(--surface)',
-                color: draft.sinAzucar === false ? 'var(--bad)' : 'var(--ink)'
-              }}
+              className={`quick-action-btn ${draft.sinAzucar === false ? 'active-no' : ''}`}
+              style={{ padding: '12px', fontSize: '14px' }}
             >
               No
             </button>
@@ -256,31 +263,15 @@ export const RegistroScreen: React.FC<RegistroScreenProps> = ({ logs, userId, ch
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
             <button
               onClick={() => handleYnToggle('verduras', true)}
-              style={{
-                padding: '12px',
-                borderRadius: '12px',
-                fontWeight: 700,
-                fontSize: '14px',
-                border: '1.5px solid',
-                borderColor: draft.verduras === true ? 'var(--good)' : 'var(--line)',
-                background: draft.verduras === true ? 'var(--good-soft)' : 'var(--surface)',
-                color: draft.verduras === true ? 'var(--good)' : 'var(--ink)'
-              }}
+              className={`quick-action-btn ${draft.verduras === true ? 'active-yes' : ''}`}
+              style={{ padding: '12px', fontSize: '14px' }}
             >
               Sí
             </button>
             <button
               onClick={() => handleYnToggle('verduras', false)}
-              style={{
-                padding: '12px',
-                borderRadius: '12px',
-                fontWeight: 700,
-                fontSize: '14px',
-                border: '1.5px solid',
-                borderColor: draft.verduras === false ? 'var(--bad)' : 'var(--line)',
-                background: draft.verduras === false ? 'var(--bad-soft)' : 'var(--surface)',
-                color: draft.verduras === false ? 'var(--bad)' : 'var(--ink)'
-              }}
+              className={`quick-action-btn ${draft.verduras === false ? 'active-no' : ''}`}
+              style={{ padding: '12px', fontSize: '14px' }}
             >
               No
             </button>
@@ -294,31 +285,15 @@ export const RegistroScreen: React.FC<RegistroScreenProps> = ({ logs, userId, ch
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
             <button
               onClick={() => handleYnToggle('ultra', true)}
-              style={{
-                padding: '12px',
-                borderRadius: '12px',
-                fontWeight: 700,
-                fontSize: '14px',
-                border: '1.5px solid',
-                borderColor: draft.ultra === true ? 'var(--good)' : 'var(--line)',
-                background: draft.ultra === true ? 'var(--good-soft)' : 'var(--surface)',
-                color: draft.ultra === true ? 'var(--good)' : 'var(--ink)'
-              }}
+              className={`quick-action-btn ${draft.ultra === true ? 'active-yes' : ''}`}
+              style={{ padding: '12px', fontSize: '14px' }}
             >
               Sí
             </button>
             <button
               onClick={() => handleYnToggle('ultra', false)}
-              style={{
-                padding: '12px',
-                borderRadius: '12px',
-                fontWeight: 700,
-                fontSize: '14px',
-                border: '1.5px solid',
-                borderColor: draft.ultra === false ? 'var(--bad)' : 'var(--line)',
-                background: draft.ultra === false ? 'var(--bad-soft)' : 'var(--surface)',
-                color: draft.ultra === false ? 'var(--bad)' : 'var(--ink)'
-              }}
+              className={`quick-action-btn ${draft.ultra === false ? 'active-no' : ''}`}
+              style={{ padding: '12px', fontSize: '14px' }}
             >
               No
             </button>
@@ -398,31 +373,15 @@ export const RegistroScreen: React.FC<RegistroScreenProps> = ({ logs, userId, ch
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
               <button
                 onClick={() => handleYnToggle('pausa', true)}
-                style={{
-                  padding: '12px',
-                  borderRadius: '12px',
-                  fontWeight: 700,
-                  fontSize: '14px',
-                  border: '1.5px solid',
-                  borderColor: draft.pausa === true ? 'var(--good)' : 'var(--line)',
-                  background: draft.pausa === true ? 'var(--good-soft)' : 'var(--surface)',
-                  color: draft.pausa === true ? 'var(--good)' : 'var(--ink)'
-                }}
+                className={`quick-action-btn ${draft.pausa === true ? 'active-yes' : ''}`}
+                style={{ padding: '12px', fontSize: '14px' }}
               >
                 Sí
               </button>
               <button
                 onClick={() => handleYnToggle('pausa', false)}
-                style={{
-                  padding: '12px',
-                  borderRadius: '12px',
-                  fontWeight: 700,
-                  fontSize: '14px',
-                  border: '1.5px solid',
-                  borderColor: draft.pausa === false ? 'var(--bad)' : 'var(--line)',
-                  background: draft.pausa === false ? 'var(--bad-soft)' : 'var(--surface)',
-                  color: draft.pausa === false ? 'var(--bad)' : 'var(--ink)'
-                }}
+                className={`quick-action-btn ${draft.pausa === false ? 'active-no' : ''}`}
+                style={{ padding: '12px', fontSize: '14px' }}
               >
                 No
               </button>
@@ -445,31 +404,15 @@ export const RegistroScreen: React.FC<RegistroScreenProps> = ({ logs, userId, ch
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
             <button
               onClick={() => handleYnToggle('reto', true)}
-              style={{
-                padding: '12px',
-                borderRadius: '12px',
-                fontWeight: 700,
-                fontSize: '14px',
-                border: '1.5px solid',
-                borderColor: draft.reto === true ? 'var(--good)' : 'var(--line)',
-                background: draft.reto === true ? 'var(--good-soft)' : 'var(--surface)',
-                color: draft.reto === true ? 'var(--good)' : 'var(--ink)'
-              }}
+              className={`quick-action-btn ${draft.reto === true ? 'active-yes' : ''}`}
+              style={{ padding: '12px', fontSize: '14px' }}
             >
               Sí
             </button>
             <button
               onClick={() => handleYnToggle('reto', false)}
-              style={{
-                padding: '12px',
-                borderRadius: '12px',
-                fontWeight: 700,
-                fontSize: '14px',
-                border: '1.5px solid',
-                borderColor: draft.reto === false ? 'var(--bad)' : 'var(--line)',
-                background: draft.reto === false ? 'var(--bad-soft)' : 'var(--surface)',
-                color: draft.reto === false ? 'var(--bad)' : 'var(--ink)'
-              }}
+              className={`quick-action-btn ${draft.reto === false ? 'active-no' : ''}`}
+              style={{ padding: '12px', fontSize: '14px' }}
             >
               No
             </button>
@@ -477,10 +420,17 @@ export const RegistroScreen: React.FC<RegistroScreenProps> = ({ logs, userId, ch
         </div>
       </div>
 
-      {/* Botón Guardar */}
-      <button className="btn-primary" onClick={handleSave}>
+      {/* Botón Guardar con feedback */}
+      <button 
+        className="btn-primary" 
+        onClick={handleSave}
+        style={{
+          background: isSavedAnimation ? 'var(--good)' : undefined,
+          boxShadow: isSavedAnimation ? '0 4px 14px rgba(46, 154, 87, 0.4)' : undefined
+        }}
+      >
         <Check size={18} strokeWidth={3} />
-        <span>Guardar registro</span>
+        <span>{isSavedAnimation ? '¡Registro Guardado!' : 'Guardar y Actualizar Registro'}</span>
       </button>
     </div>
   );
